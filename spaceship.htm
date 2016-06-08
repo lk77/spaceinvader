@@ -1,0 +1,747 @@
+<html><head>
+        <title>SpaceShip</title>
+        <meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+        <script type="text/javascript" src="gl-matrix.js"></script>
+        <script type="text/javascript" src="webgl-utils.js"></script>
+        <script type="text/javascript" src="game-utils.js"></script>
+        <script type="text/javascript" src="fbo.js"></script>
+        <script type="text/javascript" src="heightfield.js"></script>
+        <script type="text/javascript" src="background.js"></script>
+        <script type="text/javascript" src="spaceship.js"></script>
+        <script type="text/javascript" src="ennemy.js"></script>
+        <script type="text/javascript" src="missile.js"></script>
+        <script type="text/javascript" src="explosion.js"></script>
+
+        <script id="heightfield-vs" type="x-shader/x-vertex">
+            // *** le vertex shader *** 
+            attribute vec3 aVertexPosition; // la position du sommet 
+            attribute vec2 aVertexCoord; // sa coordonnee de texture 
+
+            varying vec2 vTextureCoord; // on souhaite rasteriser la coordonnee
+
+            void main(void) {
+            // projection de la position
+            gl_Position = vec4(aVertexPosition, 1.0);
+
+            // stockage de la coordonnee de texture
+            vTextureCoord = aVertexCoord;
+            }
+        </script>
+
+        <script id="heightfield-fs" type="x-shader/x-fragment">
+            // *** le fragment shader ***
+            precision highp float; // precision des nombres flottant
+
+            uniform vec2 uOffset;
+            uniform float uAmplitude; // amplitude du bruit
+            uniform float uFrequency; // frequence du bruit
+            uniform float uPersistence; // persistence du bruit
+
+            varying vec2 vTextureCoord; // recuperation de la coord rasterisee
+
+            float hash(vec2 p) {
+            // pseudo random fonction
+            float h = dot(mod(p,vec2(100.0)),vec2(127.1,311.7));
+            return -1.0 + 2.0*fract(sin(h)*43758.5453123);
+            }
+
+            float vnoise(in vec2 p) {
+            // genere une valeur random sur une position spécifique d'une grille
+            // pris sur shadertoy
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+
+            vec2 u = f*f*(3.0-2.0*f);
+
+            return mix( mix( hash( i + vec2(0.0,0.0) ), 
+            hash( i + vec2(1.0,0.0) ), u.x),
+            mix( hash( i + vec2(0.0,1.0) ), 
+            hash( i + vec2(1.0,1.0) ), u.x), u.y);
+            }
+
+            float fractalNoise(in vec2 p) {
+            const int nb = 5; // nb octave
+            float f = uFrequency; // frequency
+            float a = uAmplitude; // amplitude
+            float e = uPersistence; // persistence
+
+            float n = 0.0;
+            for(int i=0;i<nb;++i) {
+            n = n + a*vnoise(p*f);
+            f = 2.0*f;
+            a = a*e;
+            }
+            return n;
+            }
+
+            void main(void) {
+            vec2 p = vTextureCoord*2.0-vec2(1.0); // coordonnees
+            float n = fractalNoise(p+uOffset)*0.5+0.5; // bruit
+
+            gl_FragColor = vec4(vec3(n),1.0);
+
+            }
+        </script>
+
+        <script id="background-vs" type="x-shader/x-vertex">
+            // *** le vertex shader *** 
+            attribute vec3 aVertexPosition; // la position du sommet 
+            attribute vec2 aVertexCoord; // sa coordonnee de texture 
+            varying vec2 vTextureCoord; // on souhaite rasteriser la coordonnee
+
+            void main(void) {
+            // projection de la position
+            gl_Position = vec4(aVertexPosition, 1.0);
+
+            // stockage de la coordonnee de texture
+            vTextureCoord = aVertexCoord;
+            }
+        </script>
+
+        <script id="background-fs" type="x-shader/x-fragment">
+            // *** le fragment shader ***
+            precision highp float; // precision des nombres flottant
+
+            uniform sampler2D uHeightfield; // la texture de hauteurs
+            uniform vec2 uTextureSize; // la taille de la texture
+            varying vec2 vTextureCoord; // recuperation de la coord rasterisee
+
+            vec3 shade(in vec3 n,in float d) {
+            vec2 xy = vTextureCoord.xy*2.0-vec2(1.0);
+            vec3 v = -normalize(vec3(xy.x,xy.y,1.0)); // vecteur vue
+            vec3 l = normalize(vec3(-0.3,0.0,1.0)); // vecteur lumière (pourrait varier au cours du temps pour de meilleurs effets)
+            //
+            // TODO : le shading !
+            // la fonction prend en entrée la normale du terrain et sa profondeur
+            if(d < 0.2){
+            d = 0.2;
+            }
+            if(d > 0.9){
+            d = 0.9;
+            }
+            if(d > 0.5){
+            n = vec3(0.6,0.6,0.6)*(d*float(2));
+            }else{
+            n = vec3(0.2,0.4,0.8)*(d*float(1));
+            }
+            
+
+            return n;
+            }
+            
+            vec3 computeNormal() {
+            const float scale = 20.0;
+
+            vec2 ps = 1.0/uTextureSize;
+            float xp = texture2D(uHeightfield,vTextureCoord+vec2( ps.x,0.0)).x;
+            float xm = texture2D(uHeightfield,vTextureCoord+vec2(-ps.x,0.0)).x;
+            float yp = texture2D(uHeightfield,vTextureCoord+vec2(0.0, ps.y)).x;
+            float ym = texture2D(uHeightfield,vTextureCoord+vec2(0.0,-ps.y)).x;
+
+            float gx = 0.5*(xp-xm)*scale;
+            float gy = 0.5*(yp-ym)*scale;
+
+            vec3 v1 = normalize(vec3(1.0,0.0,gx));  
+            vec3 v2 = normalize(vec3(0.0,1.0,gy));
+
+            return cross(v1,v2);
+            }
+
+            void main(void) {
+            float d = texture2D(uHeightfield,vTextureCoord).x;
+            vec3 n = computeNormal();
+            vec3 s = shade(n,d);
+            gl_FragColor = vec4(s,1.0);
+
+            }
+        </script>
+
+        <script id="spaceship-vs" type="x-shader/x-vertex">
+            // *** le vertex shader *** 
+            attribute vec3 aVertexPosition; // la position du sommet 
+            attribute vec2 aVertexCoord; // sa coordonnee de texture 
+
+            uniform vec2 uPosition; // position du vaisseau
+            varying vec2 vTextureCoord; // on souhaite rasteriser la coordonnee
+
+            void main(void) {
+            // projection de la position
+            gl_Position = vec4(aVertexPosition+vec3(uPosition,0.0), 1.0);
+
+            // stockage de la coordonnee de texture
+            vTextureCoord = aVertexCoord;
+            }
+        </script>
+        <script id="spaceship-fs" type="x-shader/x-fragment">
+            // *** le fragment shader ***
+            precision highp float; // precision des nombres flottant
+
+            varying vec2 vTextureCoord; // recuperation de la coord rasterisee
+            uniform float uAlpha;
+            uniform sampler2D uMaTexture; // la texture en entree
+
+            void main(void) {
+            // couleur par defaut du vaisseau... a changer
+            //gl_FragColor = vec4(1.0,1.0,0.0,1.0);
+            //* uAlpha
+
+            gl_FragColor = texture2D(uMaTexture, vTextureCoord) * vec4(1,1.0,1.0,1.0);
+
+            }
+        </script>
+
+
+
+
+
+        <script id="ennemy-vs" type="x-shader/x-vertex">
+            // *** le vertex shader *** 
+            attribute vec3 aVertexPosition; // la position du sommet 
+            attribute vec2 aVertexCoord; // sa coordonnee de texture 
+
+            uniform vec2 uPosition; // position du vaisseau
+            varying vec2 vTextureCoord; // on souhaite rasteriser la coordonnee
+
+            void main(void) {
+            // projection de la position
+            gl_Position = vec4(aVertexPosition+vec3(uPosition,0.0), 1.0);
+
+            // stockage de la coordonnee de texture
+            vTextureCoord = aVertexCoord;
+            }
+        </script>
+        <script id="ennemy-fs" type="x-shader/x-fragment">
+            // *** le fragment shader ***
+            precision highp float; // precision des nombres flottant
+
+            varying vec2 vTextureCoord; // recuperation de la coord rasterisee
+            uniform float uAlpha;
+            uniform sampler2D uMaTexture; // la texture en entree
+
+            void main(void) {
+            // couleur par defaut du vaisseau... a changer
+            //gl_FragColor = vec4(1.0,1.0,0.0,1.0);
+            //* uAlpha
+
+            gl_FragColor = texture2D(uMaTexture, vTextureCoord) * vec4(3.0,2.0,2.0,1.0);
+
+            }
+        </script>
+
+
+
+
+        <script id="missile-vs" type="x-shader/x-vertex">
+            // *** le vertex shader *** 
+            attribute vec3 aVertexPosition; // la position du sommet 
+            attribute vec2 aVertexCoord; // sa coordonnee de texture 
+
+            uniform vec2 uPosition; // position du vaisseau
+            varying vec2 vTextureCoord; // on souhaite rasteriser la coordonnee
+
+            void main(void) {
+            // projection de la position
+            gl_Position = vec4(aVertexPosition+vec3(uPosition,0.0), 1.0);
+
+            // stockage de la coordonnee de texture
+            vTextureCoord = aVertexCoord;
+            }
+        </script>
+        <script id="missile-fs" type="x-shader/x-fragment">
+            // *** le fragment shader ***
+            precision highp float; // precision des nombres flottant
+
+            varying vec2 vTextureCoord; // recuperation de la coord rasterisee
+            uniform float uAlpha;
+            uniform sampler2D uMaTexture; // la texture en entree
+
+            void main(void) {
+            // couleur par defaut du vaisseau... a changer
+            //gl_FragColor = vec4(1.0,1.0,0.0,1.0);
+            //* uAlpha
+
+            gl_FragColor = texture2D(uMaTexture, vTextureCoord);
+
+            }
+        </script>
+
+
+
+        <script id="explosion-vs" type="x-shader/x-vertex">
+            // *** le vertex shader *** 
+            attribute vec3 aVertexPosition; // la position du sommet 
+            attribute vec2 aVertexCoord; // sa coordonnee de texture 
+
+            uniform vec2 uPosition; // position du vaisseau
+            varying vec2 vTextureCoord; // on souhaite rasteriser la coordonnee
+
+            void main(void) {
+            // projection de la position
+            gl_Position = vec4(aVertexPosition+vec3(uPosition,0.0), 1.0);
+
+            // stockage de la coordonnee de texture
+            vTextureCoord = aVertexCoord;
+            }
+        </script>
+        <script id="explosion-fs" type="x-shader/x-fragment">
+            // *** le fragment shader ***
+            precision highp float; // precision des nombres flottant
+
+            varying vec2 vTextureCoord; // recuperation de la coord rasterisee
+            uniform float uAlpha;
+            uniform sampler2D uMaTexture; // la texture en entree
+
+            void main(void) {
+            // couleur par defaut du vaisseau... a changer
+            //gl_FragColor = vec4(1.0,1.0,0.0,1.0);
+            //* uAlpha
+
+            gl_FragColor = texture2D(uMaTexture, vTextureCoord);
+
+            }
+        </script>
+
+        <script type="text/javascript">
+
+var fbo; // le FBO utilisé pour rendre la texture de hauteur
+var heightfield; // l'objet heightfield, sa géométrie, son shader
+var background; // l'objet background, sa géométrie, son shader
+var spaceship; // l'objet spaceship, sa géométrie, son shader
+var missiles = [];
+var ennemies = [];
+var explosions = [];
+var lastDifficultyIncrease = 0;
+var lastMissileFired = 0;
+
+function drawScene() {
+    // initialisation du viewport
+    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+
+    // efface les buffers de couleur et de profondeur
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // active le FBO (a partie de la, on dessine dans la texture associée)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.id());
+
+    // dessin du heightfield
+    gl.useProgram(heightfield.shader());
+    heightfield.sendUniformVariables();
+    heightfield.draw();
+
+
+    // desactivation du FBO (on dessine sur l'ecran maintenant)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // dessin du background (utilise la texture dessinée précédemment)
+    gl.useProgram(background.shader());
+    background.sendUniformVariables();
+    background.draw();
+
+    // dessin du vaisseau (shader par defaut ici)
+    gl.useProgram(spaceship.shader());
+    spaceship.sendUniformVariables();
+
+    gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0 
+    gl.bindTexture(gl.TEXTURE_2D, tspaceship); // on place maTexture dans l'unité active
+    gl.enable(gl.BLEND);
+    gl.depthMask(false);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1i(spaceship.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
+    spaceship.draw();
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+
+    // dessin des ennemis (shader par defaut ici)
+    ennemies.forEach(function (ennemy) {
+        gl.useProgram(ennemy.shader());
+        ennemy.sendUniformVariables();
+        if (!document.pause) {
+            ennemy.move();
+        }
+        var position = ennemy.getPosition();
+        this.ennemy = ennemy;
+        missiles.forEach(function (missile) {
+            var position_missile = missile.getPosition();
+            var position_ennemy = this.ennemy.getPosition();
+            var diff_x = Math.abs(position_ennemy[0] - position_missile[0]);
+            var diff_y = Math.abs(position_ennemy[1] - position_missile[1]);
+            if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
+                console.log(diff_x);
+                delete missiles[missiles.indexOf(missile)];
+                delete ennemies[ennemies.indexOf(this.ennemy)];
+                ennemies.push(new Ennemy);
+                ennemies.push(new Ennemy);
+                explosions.push(new Explosion(position_missile[0], position_missile[1], new Date().getTime()));
+                console.log(diff_x);
+                console.log(diff_y);
+                console.log('ennemy destroyed');
+                document.score++;
+                document.scoreElement.innerHTML = document.score;
+                console.log(document.scoreElement);
+            }
+        }, this);
+        var position_spaceship = spaceship.getPosition();
+        var diff_x = Math.abs(position_spaceship[0] - position[0]);
+        var diff_y = Math.abs(position_spaceship[1] - position[1]);
+        if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
+            delete ennemies[ennemies.indexOf(this.ennemy)];
+            ennemies.push(new Ennemy);
+            console.log('spaceship destroyed');
+            if (document.scoreMax < document.score) {
+                document.scoreMax = document.score;
+                document.scoreMaxElement.innerHTML = document.score;
+            }
+            document.score = 0;
+            document.scoreElement.innerHTML = document.score;
+            explosions.push(new Explosion(position[0], position[1], new Date().getTime(), 2.5));
+            ennemies = [];
+            missiles = [];
+            spaceship = new Spaceship();
+            ennemies.push(new Ennemy);
+        }
+
+        if (position[1] < -1.2) {
+            var index = ennemies.indexOf(ennemy);
+            //ennemies[index] = new Ennemy();
+            //document.score--;
+            //document.scoreElement.innerHTML = document.score;
+        }
+        gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0 
+        gl.bindTexture(gl.TEXTURE_2D, tennemy1); // on place maTexture dans l'unité active
+        gl.enable(gl.BLEND, ennemy);
+        gl.depthMask(false);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.uniform1i(ennemy.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
+        ennemy.draw();
+        gl.depthMask(true);
+        gl.disable(gl.BLEND);
+    });
+
+    missiles.forEach(function (missile) {
+        if (!missile.end) {
+            gl.useProgram(missile.shader());
+            missile.sendUniformVariables();
+            if (!document.pause) {
+                missile.move();
+            }
+            var position = missile.getPosition();
+            if (position[1] < -1.2) {
+                var index = missiles.indexOf(missile);
+                missiles[index] = null;
+            }
+            gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0 
+            gl.bindTexture(gl.TEXTURE_2D, tmissile); // on place maTexture dans l'unité active
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.uniform1i(missile.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
+            missile.draw();
+            gl.depthMask(true);
+            gl.disable(gl.BLEND);
+        } else {
+            var position = missile.getPosition();
+            delete missiles[missiles.indexOf(missile)];
+            explosions.push(new Explosion(position[0], position[1], new Date().getTime()));
+        }
+    });
+
+
+    explosions.forEach(function (explosion) {
+        if (!explosion.end) {
+            //console.log(texplosion);
+            gl.useProgram(explosion.shader());
+            explosion.sendUniformVariables();
+            //gl.activeTexture(gl["TEXTURE"+explosion.state]); // on active l'unite de texture 0
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, window["texplosion" + explosion.state]);
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.uniform1i(explosion.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
+            explosion.draw();
+            gl.depthMask(true);
+            gl.disable(gl.BLEND);
+        } else {
+            delete explosions[explosions.indexOf(explosion)];
+        }
+    });
+
+
+
+
+}
+
+
+// une bonne manière de gerer les evenements claviers
+// permet d'avoir plusieurs touches appuyées simultanémen
+var currentlyPressedKeys = {};
+
+function handleKeyDown(event) {
+    currentlyPressedKeys[event.keyCode] = true;
+    //alert(event.keyCode);
+}
+
+
+function handleKeyUp(event) {
+    currentlyPressedKeys[event.keyCode] = false;
+}
+var lastPause = new Date().getTime();
+function handleKeys() {
+    if (!document.pause && ((new Date().getTime() - lastPause) > 5000)) {
+        document.message.innerHTML = "";
+    }
+    if (currentlyPressedKeys[32]) {
+        fire();
+    }
+    if (currentlyPressedKeys[80]) {//pause = P
+        var elapsed = new Date().getTime() - lastPause;
+        lastPause = new Date().getTime();
+        if (elapsed > 100) {
+            document.pause = !document.pause;
+            if (document.pause) {
+                document.message.innerHTML = "Pause";
+            } else {
+                document.message.innerHTML = "";
+            }
+        }
+    }
+    if (!document.pause) {
+        if (currentlyPressedKeys[81]) {//move left = Q
+            moveLeft();
+        }
+        if (currentlyPressedKeys[68]) {//move right = D
+            moveRight();
+        }
+        if (currentlyPressedKeys[90]) {//move forward = Z
+            moveForward();
+        }
+        if (currentlyPressedKeys[83]) {//move backward = S
+            moveBackward();
+        }
+    }
+}
+function moveLeft() {
+    var position = spaceship.getPosition();
+    if (position[0] > -0.8) {
+        spaceship.setPosition((position[0] - 0.01), position[1]);
+    }
+}
+function moveRight() {
+    var position = spaceship.getPosition();
+    if (position[0] < 0.8) {
+        spaceship.setPosition((position[0] + 0.01), position[1]);
+    }
+}
+function moveForward() {
+    var position = spaceship.getPosition();
+    if (position[1] < 0.8) {
+        spaceship.setPosition(position[0], (position[1] + 0.01));
+    }
+}
+function moveBackward() {
+    var position = spaceship.getPosition();
+    if (position[1] > -0.8) {
+        spaceship.setPosition(position[0], (position[1] - 0.01));
+    }
+}
+function fire() {
+    var timeNow = new Date().getTime();
+    var elapsed = timeNow - lastMissileFired;
+    if (elapsed > 1000) {
+
+        var position = spaceship.getPosition();
+        missiles.push(new Missile(position[0] - 0.1, position[1] - 0.05, timeNow));
+        missiles.push(new Missile(position[0] + 0.1, position[1] - 0.05, timeNow));
+        console.log("missiles fired");
+        //lastTime = timeNow;
+        lastMissileFired = timeNow;
+    }
+}
+
+
+// animation 
+var lastTime = 0;
+var speed = 1;
+function animate() {
+    var timeNow = new Date().getTime();
+    if (lastTime !== 0) {
+        // chaque objet est susceptible de s'animer
+        var elapsed = timeNow - lastTime;
+        if (!document.pause) {
+            //speed = speed * 1.001;
+            heightfield.setParameters(elapsed,speed);
+        } else {
+            heightfield.setParameters(0, 0);
+        }
+        spaceship.setParameters(elapsed);
+
+        background.setParameters(elapsed);
+        if (((elapsed % 5) === 0) && !document.pause) {
+            ennemies.push(new Ennemy());
+            //lastDifficultyIncrease = elapsed;
+        }
+        //ennemies.push(new Ennemy());
+        explosions.forEach(function (explosion) {
+            if (!document.pause) {
+                explosion.setParameters(timeNow)
+            }
+            ;
+        });
+
+        /*ennemies.forEach(function (ennemy) {
+         ennemy.setParameters(elapsed);
+         });*/
+        missiles.forEach(function (missile) {
+            if (!document.pause) {
+                missile.setParameters(timeNow);
+            }
+        });
+    }
+    lastTime = timeNow;
+}
+
+function tick() {
+    requestAnimFrame(tick);
+    handleKeys();
+    drawScene();
+    animate();
+}
+
+var tspaceship;
+var tennemy;
+var tmissile;
+var texplosion0;
+var texplosion1;
+var texplosion2;
+
+function initTexture() {
+    // creation de la texture
+    tspaceship = gl.createTexture();
+    tspaceship.image = new Image();
+    tspaceship.image.onload = function () {
+        handleLoadedTexture(tspaceship)
+    }
+
+    tspaceship.image.src = "spaceship.png";
+
+    tennemy1 = gl.createTexture();
+    tennemy1.image = new Image();
+    tennemy1.image.onload = function () {
+        handleLoadedTexture(tennemy1)
+    }
+
+    tennemy1.image.src = "ennemy1.png";
+
+    tmissile = gl.createTexture();
+    tmissile.image = new Image();
+    tmissile.image.onload = function () {
+        handleLoadedTexture(tmissile)
+    }
+
+    tmissile.image.src = "missile.png";
+
+
+    texplosion0 = gl.createTexture();
+    texplosion0.image = new Image();
+    texplosion0.image.onload = function () {
+        handleLoadedTexture(texplosion0);
+    }
+    texplosion0.image.src = "explosion0.png";
+
+    texplosion1 = gl.createTexture();
+    texplosion1.image = new Image();
+    texplosion1.image.onload = function () {
+        handleLoadedTexture(texplosion1);
+    }
+    texplosion1.image.src = "explosion1.png";
+
+
+    texplosion2 = gl.createTexture();
+    texplosion2.image = new Image();
+    texplosion2.image.onload = function () {
+        handleLoadedTexture(texplosion2);
+    }
+    texplosion2.image.src = "explosion2.png";
+
+
+}
+
+function webGLStart() {
+    // initialisation du canvas et des objets OpenGL
+    var canvas = document.getElementById("SpaceShip");
+    document.scoreElement = document.getElementById("score");
+    document.scoreMaxElement = document.getElementById("scoremax");
+    document.message = document.getElementById("message");
+    document.score = 0;
+    document.scoreMax = 0;
+    document.pause = false;
+    initGL(canvas);
+    // init FBO
+    fbo = new FBO(canvas.width, canvas.height, 1, false);
+
+    // init de tous les shaders
+    initHeightfieldShader();
+    initBackgroundShader();
+    initSpaceshipShader();
+    initEnnemyShader();
+    initMissileShader();
+    initExplosionShader();
+    initTexture();
+
+    // init de tous les objets
+    heightfield = new Heightfield();
+    background = new Background(fbo.texture(0));
+    spaceship = new Spaceship();
+    ennemies[0] = new Ennemy();
+
+
+    // la couleur de fond sera noire
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+    // active le teste de profondeur 
+    gl.enable(gl.DEPTH_TEST);
+
+    /* Mouse and keyboard interaction functions */
+    //canvas.addEventListener('mousedown', tbMouseDown, true);
+    //canvas.addEventListener('mousemove', mouseMove, true);
+    //canvas.addEventListener('mouseup', tbMouseUp, true);    
+
+    document.onkeydown = handleKeyDown;
+    document.onkeyup = handleKeyUp;
+
+    // dessine la scene
+    tick();
+}
+
+
+        </script>
+
+
+    </head>
+
+
+    <body onload="webGLStart();">
+        <canvas id="SpaceShip" style="border: none;" width="800" height="800"></canvas>
+        <div style="position: absolute;
+             top: 0px;
+             color: red;
+             padding-left:5px;
+             font-weight:bold;">
+            <p>score : <span id="score">0</span></p>
+            <p>score max : <span id="scoremax">0</span></p>
+        </div>
+        <div style="position: absolute;
+             top:400px;
+             width:800px;
+             color: red;
+             padding-left:5px;
+             font-weight:bold;">
+            <p style="text-align:center; width:800px;"><span  id="message">Z = Avancer / Q = Gauche / S = Arri�re / D = Droite / Espace = Tirer / P = Pause</span></p>
+        </div>
+    </body></html>

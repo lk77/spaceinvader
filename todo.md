@@ -3,7 +3,7 @@ changement arme
 autofire
 incliner la camera
 vies/game over
-hightscore en localstorage
+highscore en localstorage
 
 #DONE
 deplacement sinusoidale
@@ -12,4 +12,3 @@ tir long porte
 splashscreen
 nom joueur
 vitesse deplacement
-

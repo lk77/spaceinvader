@@ -1,0 +1,11 @@
+GESTION
+
+  // dessin des ennemis (shader par defaut ici)
+    ennemies.forEach(function (enn
+
+vie = vie -100 ;
+console.log(vie);
+if (vie == 0){
+....
+            vie = 300;
+        }

@@ -348,6 +348,23 @@ var ennemies = [];
 var explosions = [];
 var lastDifficultyIncrease = 0;
 var lastMissileFired = 0;
+var vie = 30 ; // nombre vie
+
+
+function splashScreen(status){
+  if (status == "1"){
+    console.log ("afficher splash")
+    document.body.style.background ="url(splash.jpg)";
+    document.body.style.backgroundSize="cover";
+    document.body.style.zIndex= "-1";
+    document.body.styleposition="relative";
+    console.log("splash on");
+  }
+  else {
+    document.body.style.background = "none"; // cache le splashscreen
+    console.log("splash off");
+  }
+}
 
 function drawScene() {
     // initialisation du viewport
@@ -418,25 +435,40 @@ function drawScene() {
                 console.log(document.scoreElement);
             }
         }, this);
-        var position_spaceship = spaceship.getPosition();
+        var position_spaceship = spaceship.getPosition(); // colission avec le vaisseau joueur
         var diff_x = Math.abs(position_spaceship[0] - position[0]);
         var diff_y = Math.abs(position_spaceship[1] - position[1]);
         if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
             delete ennemies[ennemies.indexOf(this.ennemy)];
-            ennemies.push(new Ennemy);
-            console.log('spaceship destroyed');
-            if (document.scoreMax < document.score) {
-                document.scoreMax = document.score;
-                document.scoreMaxElement.innerHTML = document.score;
-            }
-            document.score = 0;
-            document.scoreElement.innerHTML = document.score;
+            vie = vie -10 ;
             explosions.push(new Explosion(position[0], position[1], new Date().getTime(), 2.5));
-            ennemies = [];
-            missiles = [];
-            spaceship = new Spaceship();
-            ennemies.push(new Ennemy);
-        }
+            console.log(vie);
+              if (vie == 0){ // si plus de vie
+
+                ennemies.push(new Ennemy);
+                console.log('spaceship destroyed');
+                if (document.scoreMax < document.score) { // si nouveau scoreMax joueur
+                    document.scoreMax = document.score;
+                    document.scoreMaxElement.innerHTML = document.score;
+                }
+
+                explosions.push(new Explosion(position[0], position[1], new Date().getTime(), 2.5));
+                ennemies = [];
+                missiles = [];
+                spaceship = new Spaceship();
+                ennemies.push(new Ennemy);
+
+                // demander si rejouer
+                var replay= prompt("Score:"+ document.score + "\nPret a rejouer ?"); // demander si joueur recommence
+                while (typeof replay == 'undefined' ) { // tant que le replay nest pas fournit
+                  document.pause = true; // le jeu est en pause
+                } // si le nom est founit
+                document.score = 0;
+                document.scoreElement.innerHTML = document.score;
+                vie = 30;
+                document.pause = false; // enleve la pause
+            }
+      }
 
         if (position[1] < -1.2) {
             var index = ennemies.indexOf(ennemy);
@@ -624,7 +656,7 @@ function animate() {
         spaceship.setParameters(elapsed);
 
         background.setParameters(elapsed);
-        if (((elapsed % 20) === 0) && !document.pause) {
+        if (((elapsed % 3) === 0) && !document.pause) {
             if (ennemy_type === 1) {
                 ennemies.push(new Ennemy(1));
                 ennemy_type = 2;
@@ -728,15 +760,17 @@ function initTexture() {
 
 }
 
+
 function webGLStart() {
     // initialisation du canvas et des objets OpenGL
+        splashScreen("1");
     var nomJoueur= prompt("Nom"); // recuperation nom du joueur
-    document.getElementById("nomJoueur").innerHTML = nomJoueur;
 
+    document.getElementById("nomJoueur").innerHTML = nomJoueur;
     while (typeof nomJoueur == 'undefined' ) { // tant que le nom nest pas fournit
       document.pause = true; // le jeu est en pause
     } // si le nom est founit
-    document.body.style.background = "none"; // cache le splashscreen
+    splashScreen("0");
     document.pause = false; // enleve la pause
 
     var canvas = document.getElementById("SpaceShip");
@@ -791,15 +825,6 @@ function webGLStart() {
     </head>
 
     <style>
-      body {
-        background: url(splash.jpg) no-repeat center center fixed;
-        -webkit-background-size: cover;
-        -moz-background-size: cover;
-        -o-background-size: cover;
-        background-size: cover;
-        z-index: -1;
-        position:relative;
-      }
       #infos{
         display: flex;
         flex-flow: row;
@@ -830,6 +855,7 @@ function webGLStart() {
               <p>score : <span id="score">0</span></p>
               <p>score max : <span id="scoremax">0</span></p>
               <p>meilleur joueur:<span id="meilleurJoueur">XYZ / 100</span></p>
+              <p>vie:<span id="vie"></span></p>
           </div>
 
         </div>
@@ -839,6 +865,6 @@ function webGLStart() {
              color: red;
              padding-left:5px;
              font-weight:bold;">
-            <p style="text-align:center; width:800px;"><span  id="message">Z = Avancer / Q = Gauche / S = Arri�re / D = Droite / Espace = Tirer / P = Pause</span></p>
+            <p style="text-align:center; width:800px;"><span  id="message">Z = Avancer / Q = Gauche / S = Arriere / D = Droite / Espace = Tirer / P = Pause</span></p>
         </div>
     </body></html>

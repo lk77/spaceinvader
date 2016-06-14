@@ -20,8 +20,8 @@ function initEnnemyShader() {
     console.log("ennemy shader initialized");
 }
 
-function Ennemy() {
-    this.initParameters();
+function Ennemy(type) {
+    this.initParameters(type);
 
     // cree un nouveau buffer sur le GPU et l'active
     this.vertexBuffer = gl.createBuffer();
@@ -71,10 +71,15 @@ function Ennemy() {
     console.log("ennemy initialized");
 }
 
-Ennemy.prototype.initParameters = function () {
+Ennemy.prototype.initParameters = function (type) {
     this.width = 0.2;
     this.height = 0.2;
-    this.position = [Math.random() * (0.9 + 0.9) -0.9, Math.random() * (2.5 - 1.2) + 1.2];
+    this.position = [Math.random() * (0.9 + 0.9) - 0.9, Math.random() * (2.5 - 1.2) + 1.2];
+    if (type === 1 || type === 2) {
+        this.type = type;
+    } else {
+        this.type = 1;
+    }
     //this.position = [0.0,0.0];
 }
 
@@ -86,6 +91,10 @@ Ennemy.prototype.getPosition = function () {
     return this.position;
 }
 
+Ennemy.prototype.getType = function () {
+    return this.type;
+}
+
 Ennemy.prototype.setPosition = function (x, y) {
     this.position = [x, y];
 }
@@ -93,7 +102,12 @@ Ennemy.prototype.setPosition = function (x, y) {
 Ennemy.prototype.move = function () {
     var x = this.position[0];
     var y = this.position[1];
-    this.position = [x, y - 0.01];
+    if (this.type === 1) {
+        this.position = [x + Math.sin(y) * 0.005, y -  0.01];
+    }
+    if (this.type === 2) {
+        this.position = [x + Math.sin(y) * 0.005, y -  0.025];
+    }
 }
 
 Ennemy.prototype.shader = function () {

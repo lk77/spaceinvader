@@ -1,26 +1,26 @@
-var missileShader;
+var powerupShader;
 
-function initMissileShader() {
-    missileShader = initShaders("missile-vs", "missile-fs");
+function initPowerupShader() {
+    powerupShader = initShaders("powerup-vs", "powerup-fs");
 
     // active ce shader
-    gl.useProgram(missileShader);
+    gl.useProgram(powerupShader);
 
     // recupere la localisation de l'attribut dans lequel on souhaite acceder aux positions
-    missileShader.vertexPositionAttribute = gl.getAttribLocation(missileShader, "aVertexPosition");
-    gl.enableVertexAttribArray(missileShader.vertexPositionAttribute); // active cet attribut 
+    powerupShader.vertexPositionAttribute = gl.getAttribLocation(powerupShader, "aVertexPosition");
+    gl.enableVertexAttribArray(powerupShader.vertexPositionAttribute); // active cet attribut 
 
     // pareil pour les coordonnees de texture 
-    missileShader.vertexCoordAttribute = gl.getAttribLocation(missileShader, "aVertexCoord");
-    gl.enableVertexAttribArray(missileShader.vertexCoordAttribute);
+    powerupShader.vertexCoordAttribute = gl.getAttribLocation(powerupShader, "aVertexCoord");
+    gl.enableVertexAttribArray(powerupShader.vertexCoordAttribute);
 
     // adresse de la variable uniforme uOffset dans le shader
-    missileShader.positionUniform = gl.getUniformLocation(missileShader, "uPosition");
+    powerupShader.positionUniform = gl.getUniformLocation(powerupShader, "uPosition");
 
-    console.log("missile shader initialized");
+    console.log("powerup shader initialized");
 }
 
-function Missile(x,y,time) {
+function Powerup(x,y,time) {
     this.initParameters(x,y,time);
 
     // cree un nouveau buffer sur le GPU et l'active
@@ -63,10 +63,10 @@ function Missile(x,y,time) {
     var tri = [0, 1, 2, 0, 2, 3];
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tri), gl.STATIC_DRAW);
     this.triangles.numItems = 6;
-    console.log("missile initialized");
+    console.log("powerup initialized");
 }
 
-Missile.prototype.initParameters = function (x,y,time) {
+Powerup.prototype.initParameters = function (x,y,time) {
     this.width = 0.2;
     this.height = 0.2;
     this.position = [x,y];
@@ -74,42 +74,42 @@ Missile.prototype.initParameters = function (x,y,time) {
     this.end = false;
 }
 
-Missile.prototype.setParameters = function (time) {
+Powerup.prototype.setParameters = function (time) {
     if(time > (this.time + 2500)){
         this.end = true;
     }
 }
 
-Missile.prototype.getPosition = function () {
+Powerup.prototype.getPosition = function () {
     return this.position;
 }
 
-Missile.prototype.setPosition = function (x, y) {
+Powerup.prototype.setPosition = function (x, y) {
     this.position = [x, y];
 }
 
-Missile.prototype.move = function () {
+Powerup.prototype.move = function () {
     var x = this.position[0];
     var y = this.position[1];
-    this.position = [x, y + 0.02];
+    this.position = [x, y + 0.008];
 }
 
-Missile.prototype.shader = function () {
-    return missileShader;
+Powerup.prototype.shader = function () {
+    return powerupShader;
 }
 
-Missile.prototype.sendUniformVariables = function () {
-    gl.uniform2fv(missileShader.positionUniform, this.position);
+Powerup.prototype.sendUniformVariables = function () {
+    gl.uniform2fv(powerupShader.positionUniform, this.position);
 }
 
-Missile.prototype.draw = function () {
+Powerup.prototype.draw = function () {
     // active le buffer de position et fait le lien avec l'attribut aVertexPosition dans le shader
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.vertexAttribPointer(missileShader.vertexPositionAttribute, this.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(powerupShader.vertexPositionAttribute, this.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
     // active le buffer de coords
     gl.bindBuffer(gl.ARRAY_BUFFER, this.coordBuffer);
-    gl.vertexAttribPointer(missileShader.vertexCoordAttribute, this.coordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(powerupShader.vertexCoordAttribute, this.coordBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
     // dessine les buffers actifs
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.triangles);

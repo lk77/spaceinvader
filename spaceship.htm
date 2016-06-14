@@ -125,11 +125,11 @@
             }else{
             n = vec3(0.2,0.4,0.8)*(d*float(1));
             }
-            
+
 
             return n;
             }
-            
+
             vec3 computeNormal() {
             const float scale = 20.0;
 
@@ -302,6 +302,41 @@
             }
         </script>
 
+        
+        
+        <script id="powerup-vs" type="x-shader/x-vertex">
+            // *** le vertex shader *** 
+            attribute vec3 aVertexPosition; // la position du sommet 
+            attribute vec2 aVertexCoord; // sa coordonnee de texture 
+
+            uniform vec2 uPosition; // position du vaisseau
+            varying vec2 vTextureCoord; // on souhaite rasteriser la coordonnee
+
+            void main(void) {
+            // projection de la position
+            gl_Position = vec4(aVertexPosition+vec3(uPosition,0.0), 1.0);
+
+            // stockage de la coordonnee de texture
+            vTextureCoord = aVertexCoord;
+            }
+        </script>
+        <script id="powerup-fs" type="x-shader/x-fragment">
+            // *** le fragment shader ***
+            precision highp float; // precision des nombres flottant
+
+            varying vec2 vTextureCoord; // recuperation de la coord rasterisee
+            uniform float uAlpha;
+            uniform sampler2D uMaTexture; // la texture en entree
+
+            void main(void) {
+            // couleur par defaut du vaisseau... a changer
+            //gl_FragColor = vec4(1.0,1.0,0.0,1.0);
+            //* uAlpha
+
+            gl_FragColor = texture2D(uMaTexture, vTextureCoord);
+
+            }
+        </script>
         <script type="text/javascript">
 
 var fbo; // le FBO utilisé pour rendre la texture de hauteur
@@ -410,7 +445,12 @@ function drawScene() {
             //document.scoreElement.innerHTML = document.score;
         }
         gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0 
-        gl.bindTexture(gl.TEXTURE_2D, tennemy1); // on place maTexture dans l'unité active
+        if (ennemy.getType() === 1) {
+            gl.bindTexture(gl.TEXTURE_2D, tennemy1); // on place maTexture dans l'unité active
+        }
+        if (ennemy.getType() === 2) {
+            gl.bindTexture(gl.TEXTURE_2D, tennemy2); // on place maTexture dans l'unité active
+        }
         gl.enable(gl.BLEND, ennemy);
         gl.depthMask(false);
         gl.blendEquation(gl.FUNC_ADD);
@@ -419,6 +459,7 @@ function drawScene() {
         ennemy.draw();
         gl.depthMask(true);
         gl.disable(gl.BLEND);
+
     });
 
     missiles.forEach(function (missile) {
@@ -567,6 +608,7 @@ function fire() {
 
 // animation 
 var lastTime = 0;
+var ennemy_type = 1;
 var speed = 1;
 function animate() {
     var timeNow = new Date().getTime();
@@ -575,7 +617,7 @@ function animate() {
         var elapsed = timeNow - lastTime;
         if (!document.pause) {
             //speed = speed * 1.001;
-            heightfield.setParameters(elapsed,speed);
+            heightfield.setParameters(elapsed, speed);
         } else {
             heightfield.setParameters(0, 0);
         }
@@ -583,10 +625,15 @@ function animate() {
 
         background.setParameters(elapsed);
         if (((elapsed % 5) === 0) && !document.pause) {
-            ennemies.push(new Ennemy());
-            //lastDifficultyIncrease = elapsed;
+            if (ennemy_type === 1) {
+                ennemies.push(new Ennemy(1));
+                ennemy_type = 2;
+            }
+            if (ennemy_type === 2) {
+                ennemies.push(new Ennemy(2));
+                ennemy_type = 1;
+            }
         }
-        //ennemies.push(new Ennemy());
         explosions.forEach(function (explosion) {
             if (!document.pause) {
                 explosion.setParameters(timeNow)
@@ -614,7 +661,8 @@ function tick() {
 }
 
 var tspaceship;
-var tennemy;
+var tennemy1;
+var tennemy2;
 var tmissile;
 var texplosion0;
 var texplosion1;
@@ -637,6 +685,14 @@ function initTexture() {
     }
 
     tennemy1.image.src = "ennemy1.png";
+
+    tennemy2 = gl.createTexture();
+    tennemy2.image = new Image();
+    tennemy2.image.onload = function () {
+        handleLoadedTexture(tennemy2)
+    }
+
+    tennemy2.image.src = "ennemy2.png";
 
     tmissile = gl.createTexture();
     tmissile.image = new Image();
@@ -698,7 +754,7 @@ function webGLStart() {
     heightfield = new Heightfield();
     background = new Background(fbo.texture(0));
     spaceship = new Spaceship();
-    ennemies[0] = new Ennemy();
+    ennemies[0] = new Ennemy(1);
 
 
     // la couleur de fond sera noire

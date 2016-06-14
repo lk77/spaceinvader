@@ -103,10 +103,10 @@ Ennemy.prototype.move = function () {
     var x = this.position[0];
     var y = this.position[1];
     if (this.type === 1) {
-        this.position = [x - Math.sin(y) *0.0015, y -  0.01];
+        this.position = [x - Math.sin(y) * 0.0015, y - 0.01];
     }
     if (this.type === 2) {
-        this.position = [x + Math.sin(y) *0.0035, y -  0.025];
+        this.position = [x + Math.sin(y) * 0.0035, y - 0.025];
     }
 }
 
@@ -116,6 +116,74 @@ Ennemy.prototype.shader = function () {
 
 Ennemy.prototype.sendUniformVariables = function () {
     gl.uniform2fv(ennemyShader.positionUniform, this.position);
+}
+
+Ennemy.prototype.init = function (missiles,ennemies,explosions,spaceship) {
+    gl.useProgram(this.shader());
+    this.sendUniformVariables();
+    if (!document.pause) {
+        this.move();
+    }
+    var position = this.getPosition();
+    this.ennemy = this;
+    missiles.forEach(function (missile) {
+        var position_missile = missile.getPosition();
+        var position_ennemy = this.ennemy.getPosition();
+        var diff_x = Math.abs(position_ennemy[0] - position_missile[0]);
+        var diff_y = Math.abs(position_ennemy[1] - position_missile[1]);
+        if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
+            console.log(diff_x);
+            delete missiles[missiles.indexOf(missile)];
+            delete ennemies[ennemies.indexOf(this.ennemy)];
+            ennemies.push(new Ennemy);
+            ennemies.push(new Ennemy);
+            explosions.push(new Explosion(position_missile[0], position_missile[1], new Date().getTime()));
+            console.log(diff_x);
+            console.log(diff_y);
+            console.log('ennemy destroyed');
+            document.score++;
+            document.scoreElement.innerHTML = document.score;
+            console.log(document.scoreElement);
+        }
+    }, this);
+    var position_spaceship = spaceship.getPosition();
+    var diff_x = Math.abs(position_spaceship[0] - position[0]);
+    var diff_y = Math.abs(position_spaceship[1] - position[1]);
+    if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
+        delete ennemies[ennemies.indexOf(this.ennemy)];
+        ennemies.push(new Ennemy);
+        console.log('spaceship destroyed');
+        if (document.scoreMax < document.score) {
+            document.scoreMax = document.score;
+            document.scoreMaxElement.innerHTML = document.score;
+        }
+        document.score = 0;
+        document.scoreElement.innerHTML = document.score;
+        explosions.push(new Explosion(position[0], position[1], new Date().getTime(), 2.5));
+        ennemies = [];
+        missiles = [];
+        spaceship = new Spaceship();
+        ennemies.push(new Ennemy);
+    }
+
+    if (position[1] < -1.2) {
+        var index = ennemies.indexOf(this);
+    }
+    gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
+    if (this.getType() === 1) {
+        gl.bindTexture(gl.TEXTURE_2D, window['tennemy1']); // on place maTexture dans l'unitÃ© active
+    }
+    if (this.getType() === 2) {
+        gl.bindTexture(gl.TEXTURE_2D, window['tennemy2']); // on place maTexture dans l'unitÃ© active
+    }
+    gl.enable(gl.BLEND, this);
+    gl.depthMask(false);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1i(this.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
+    this.draw();
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
 }
 
 Ennemy.prototype.draw = function () {

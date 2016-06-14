@@ -377,88 +377,12 @@ function drawScene() {
     // dessin du vaisseau (shader par defaut ici)
     gl.useProgram(spaceship.shader());
     spaceship.sendUniformVariables();
-
-    gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
-    gl.bindTexture(gl.TEXTURE_2D, tspaceship); // on place maTexture dans l'unité active
-    gl.enable(gl.BLEND);
-    gl.depthMask(false);
-    gl.blendEquation(gl.FUNC_ADD);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.uniform1i(spaceship.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-    spaceship.draw();
-    gl.depthMask(true);
-    gl.disable(gl.BLEND);
+    spaceship.init();
+    
 
     // dessin des ennemis (shader par defaut ici)
     ennemies.forEach(function (ennemy) {
-        gl.useProgram(ennemy.shader());
-        ennemy.sendUniformVariables();
-        if (!document.pause) {
-            ennemy.move();
-        }
-        var position = ennemy.getPosition();
-        this.ennemy = ennemy;
-        missiles.forEach(function (missile) {
-            var position_missile = missile.getPosition();
-            var position_ennemy = this.ennemy.getPosition();
-            var diff_x = Math.abs(position_ennemy[0] - position_missile[0]);
-            var diff_y = Math.abs(position_ennemy[1] - position_missile[1]);
-            if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
-                console.log(diff_x);
-                delete missiles[missiles.indexOf(missile)];
-                delete ennemies[ennemies.indexOf(this.ennemy)];
-                ennemies.push(new Ennemy);
-                ennemies.push(new Ennemy);
-                explosions.push(new Explosion(position_missile[0], position_missile[1], new Date().getTime()));
-                console.log(diff_x);
-                console.log(diff_y);
-                console.log('ennemy destroyed');
-                document.score++;
-                document.scoreElement.innerHTML = document.score;
-                console.log(document.scoreElement);
-            }
-        }, this);
-        var position_spaceship = spaceship.getPosition();
-        var diff_x = Math.abs(position_spaceship[0] - position[0]);
-        var diff_y = Math.abs(position_spaceship[1] - position[1]);
-        if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
-            delete ennemies[ennemies.indexOf(this.ennemy)];
-            ennemies.push(new Ennemy);
-            console.log('spaceship destroyed');
-            if (document.scoreMax < document.score) {
-                document.scoreMax = document.score;
-                document.scoreMaxElement.innerHTML = document.score;
-            }
-            document.score = 0;
-            document.scoreElement.innerHTML = document.score;
-            explosions.push(new Explosion(position[0], position[1], new Date().getTime(), 2.5));
-            ennemies = [];
-            missiles = [];
-            spaceship = new Spaceship();
-            ennemies.push(new Ennemy);
-        }
-
-        if (position[1] < -1.2) {
-            var index = ennemies.indexOf(ennemy);
-            //ennemies[index] = new Ennemy();
-            //document.score--;
-            //document.scoreElement.innerHTML = document.score;
-        }
-        gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
-        if (ennemy.getType() === 1) {
-            gl.bindTexture(gl.TEXTURE_2D, tennemy1); // on place maTexture dans l'unité active
-        }
-        if (ennemy.getType() === 2) {
-            gl.bindTexture(gl.TEXTURE_2D, tennemy2); // on place maTexture dans l'unité active
-        }
-        gl.enable(gl.BLEND, ennemy);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.uniform1i(ennemy.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-        ennemy.draw();
-        gl.depthMask(true);
-        gl.disable(gl.BLEND);
+        ennemy.init(missiles,ennemies,explosions,spaceship);
 
     });
 

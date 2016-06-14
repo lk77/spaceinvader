@@ -153,9 +153,12 @@ Ennemy.prototype.init = function (missiles,ennemies,explosions,spaceship) {
         delete ennemies[ennemies.indexOf(this.ennemy)];
         ennemies.push(new Ennemy);
         console.log('spaceship destroyed');
+        alert(document.scoreMax);
         if (document.scoreMax < document.score) {
             document.scoreMax = document.score;
             document.scoreMaxElement.innerHTML = document.score;
+            document.scores[document.nomJoueur] = document.scoreMax;
+            localStorage.setItem('scores',document.scores);
         }
         document.score = 0;
         document.scoreElement.innerHTML = document.score;

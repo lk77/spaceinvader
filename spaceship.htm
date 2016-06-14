@@ -464,26 +464,7 @@ function drawScene() {
 
     missiles.forEach(function (missile) {
         if (!missile.end) {
-            gl.useProgram(missile.shader());
-            missile.sendUniformVariables();
-            if (!document.pause) {
-                missile.move();
-            }
-            var position = missile.getPosition();
-            if (position[1] < -1.2) {
-                var index = missiles.indexOf(missile);
-                missiles[index] = null;
-            }
-            gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
-            gl.bindTexture(gl.TEXTURE_2D, tmissile); // on place maTexture dans l'unité active
-            gl.enable(gl.BLEND);
-            gl.depthMask(false);
-            gl.blendEquation(gl.FUNC_ADD);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-            gl.uniform1i(missile.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-            missile.draw();
-            gl.depthMask(true);
-            gl.disable(gl.BLEND);
+            missile.init();
         } else {
             var position = missile.getPosition();
             delete missiles[missiles.indexOf(missile)];
@@ -494,20 +475,7 @@ function drawScene() {
 
     explosions.forEach(function (explosion) {
         if (!explosion.end) {
-            //console.log(texplosion);
-            gl.useProgram(explosion.shader());
-            explosion.sendUniformVariables();
-            //gl.activeTexture(gl["TEXTURE"+explosion.state]); // on active l'unite de texture 0
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, window["texplosion" + explosion.state]);
-            gl.enable(gl.BLEND);
-            gl.depthMask(false);
-            gl.blendEquation(gl.FUNC_ADD);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-            gl.uniform1i(explosion.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-            explosion.draw();
-            gl.depthMask(true);
-            gl.disable(gl.BLEND);
+            explosion.init();
         } else {
             delete explosions[explosions.indexOf(explosion)];
         }
@@ -724,6 +692,13 @@ function initTexture() {
         handleLoadedTexture(texplosion2);
     }
     texplosion2.image.src = "explosion2.png";
+    
+    tnuclear = gl.createTexture();
+    tnuclear.image = new Image();
+    tnuclear.image.onload = function () {
+        handleLoadedTexture(tnuclear);
+    }
+    tnuclear.image.src = "nuclear.png";
 
 
 }

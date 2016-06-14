@@ -20,16 +20,16 @@ function initExplosionShader() {
     console.log("explosion shader initialized");
 }
 
-function Explosion(x,y,time,factor) {
+function Explosion(x, y, time, factor) {
     factor = factor || 1;
-    this.initParameters(x,y,time);
+    this.initParameters(x, y, time);
 
     // cree un nouveau buffer sur le GPU et l'active
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
     // un tableau contenant les positions des sommets (sur CPU donc)
-    var wo2 = 0.5 * factor*  this.width;
+    var wo2 = 0.5 * factor * this.width;
     var ho2 = 0.5 * factor * this.height;
 
     var vertices = [
@@ -72,7 +72,7 @@ function Explosion(x,y,time,factor) {
     console.log("explosion initialized");
 }
 
-Explosion.prototype.initParameters = function (x,y,time) {
+Explosion.prototype.initParameters = function (x, y, time) {
     this.width = 0.2;
     this.height = 0.2;
     this.position = [x, y];
@@ -83,16 +83,16 @@ Explosion.prototype.initParameters = function (x,y,time) {
 }
 
 Explosion.prototype.setParameters = function (time) {
-    if(time > (this.time + 100)){
+    if (time > (this.time + 100)) {
         this.state = 1;
     }
-    if(time > (this.time + 200)){
+    if (time > (this.time + 200)) {
         this.state = 2;
     }
     /*if(time > (this.time + 300)){
-        this.state = 3;
-    }*/
-    if(time > (this.time + 400)){
+     this.state = 3;
+     }*/
+    if (time > (this.time + 400)) {
         this.end = true;
     }
 }
@@ -116,7 +116,21 @@ Explosion.prototype.shader = function () {
 Explosion.prototype.sendUniformVariables = function () {
     gl.uniform2fv(explosionShader.positionUniform, this.position);
 }
-
+Explosion.prototype.init = function () {
+    gl.useProgram(this.shader());
+    this.sendUniformVariables();
+    //gl.activeTexture(gl["TEXTURE"+explosion.state]); // on active l'unite de texture 0
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, window["texplosion" + this.state]);
+    gl.enable(gl.BLEND);
+    gl.depthMask(false);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1i(this.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
+    this.draw();
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+}
 Explosion.prototype.draw = function () {
     // active le buffer de position et fait le lien avec l'attribut aVertexPosition dans le shader
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -129,6 +143,8 @@ Explosion.prototype.draw = function () {
     // dessine les buffers actifs
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.triangles);
     gl.drawElements(gl.TRIANGLES, this.triangles.numItems, gl.UNSIGNED_SHORT, 0);
+
+
 }
 
 

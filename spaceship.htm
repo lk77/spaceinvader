@@ -338,511 +338,357 @@
             }
         </script>
         <script type="text/javascript">
-
-var fbo; // le FBO utilisé pour rendre la texture de hauteur
-var heightfield; // l'objet heightfield, sa géométrie, son shader
-var background; // l'objet background, sa géométrie, son shader
-var spaceship; // l'objet spaceship, sa géométrie, son shader
-var missiles = [];
-var ennemies = [];
-var explosions = [];
-var lastDifficultyIncrease = 0;
-var lastMissileFired = 0;
-var vie = 30 ; // nombre vie
-
-
-function splashScreen(status){
-  if (status == "1"){
-    console.log ("afficher splash")
-    document.body.style.background ="url(splash.jpg)";
-    document.body.style.backgroundSize="cover";
-    document.body.style.zIndex= "-1";
-    document.body.styleposition="relative";
-    console.log("splash on");
-  }
-  else {
-    document.body.style.background = "none"; // cache le splashscreen
-    console.log("splash off");
-  }
-}
-
-function drawScene() {
-    // initialisation du viewport
-    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-
-    // efface les buffers de couleur et de profondeur
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    // active le FBO (a partie de la, on dessine dans la texture associée)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.id());
-
-    // dessin du heightfield
-    gl.useProgram(heightfield.shader());
-    heightfield.sendUniformVariables();
-    heightfield.draw();
+            var fbo; // le FBO utilisé pour rendre la texture de hauteur
+            var heightfield; // l'objet heightfield, sa géométrie, son shader
+            var background; // l'objet background, sa géométrie, son shader
+            var spaceship; // l'objet spaceship, sa géométrie, son shader
+            var missiles = [];
+            var ennemies = [];
+            var explosions = [];
+            var lastDifficultyIncrease = 0;
+            var lastMissileFired = 0;
+            var vie = 30; // nombre vie
 
 
-    // desactivation du FBO (on dessine sur l'ecran maintenant)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // dessin du background (utilise la texture dessinée précédemment)
-    gl.useProgram(background.shader());
-    background.sendUniformVariables();
-    background.draw();
-
-    // dessin du vaisseau (shader par defaut ici)
-    gl.useProgram(spaceship.shader());
-    spaceship.sendUniformVariables();
-
-    gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
-    gl.bindTexture(gl.TEXTURE_2D, tspaceship); // on place maTexture dans l'unité active
-    gl.enable(gl.BLEND);
-    gl.depthMask(false);
-    gl.blendEquation(gl.FUNC_ADD);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.uniform1i(spaceship.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-    spaceship.draw();
-    gl.depthMask(true);
-    gl.disable(gl.BLEND);
-
-    // dessin des ennemis (shader par defaut ici)
-    ennemies.forEach(function (ennemy) {
-        gl.useProgram(ennemy.shader());
-        ennemy.sendUniformVariables();
-        if (!document.pause) {
-            ennemy.move();
-        }
-        var position = ennemy.getPosition();
-        this.ennemy = ennemy;
-        missiles.forEach(function (missile) {
-            var position_missile = missile.getPosition();
-            var position_ennemy = this.ennemy.getPosition();
-            var diff_x = Math.abs(position_ennemy[0] - position_missile[0]);
-            var diff_y = Math.abs(position_ennemy[1] - position_missile[1]);
-            if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
-                console.log(diff_x);
-                delete missiles[missiles.indexOf(missile)];
-                delete ennemies[ennemies.indexOf(this.ennemy)];
-                ennemies.push(new Ennemy);
-                ennemies.push(new Ennemy);
-                explosions.push(new Explosion(position_missile[0], position_missile[1], new Date().getTime()));
-                console.log(diff_x);
-                console.log(diff_y);
-                console.log('ennemy destroyed');
-                document.score++;
-                document.scoreElement.innerHTML = document.score;
-                console.log(document.scoreElement);
-            }
-        }, this);
-        var position_spaceship = spaceship.getPosition(); // colission avec le vaisseau joueur
-        var diff_x = Math.abs(position_spaceship[0] - position[0]);
-        var diff_y = Math.abs(position_spaceship[1] - position[1]);
-        if ((diff_x < 0.1 && diff_x > 0) && (diff_y < 0.1 && diff_y > 0)) {
-            delete ennemies[ennemies.indexOf(this.ennemy)];
-            vie = vie -10 ;
-            explosions.push(new Explosion(position[0], position[1], new Date().getTime(), 2.5));
-            console.log(vie);
-              if (vie == 0){ // si plus de vie
-
-                ennemies.push(new Ennemy);
-                console.log('spaceship destroyed');
-                if (document.scoreMax < document.score) { // si nouveau scoreMax joueur
-                    document.scoreMax = document.score;
-                    document.scoreMaxElement.innerHTML = document.score;
+            function splashScreen(status) {
+                if (status === "1") {
+                    console.log("afficher splash")
+                    document.body.style.background = "url(splash.jpg)";
+                    document.body.style.backgroundSize = "cover";
+                    document.body.style.zIndex = "-1";
+                    document.body.styleposition = "relative";
+                    console.log("splash on");
                 }
-
-                explosions.push(new Explosion(position[0], position[1], new Date().getTime(), 2.5));
-                ennemies = [];
-                missiles = [];
-                spaceship = new Spaceship();
-                ennemies.push(new Ennemy);
-
-                // demander si rejouer
-                var replay= prompt("Score:"+ document.score + "\nPret a rejouer ?"); // demander si joueur recommence
-                while (typeof replay == 'undefined' ) { // tant que le replay nest pas fournit
-                  document.pause = true; // le jeu est en pause
-                } // si le nom est founit
-                document.score = 0;
-                document.scoreElement.innerHTML = document.score;
-                vie = 30;
-                document.pause = false; // enleve la pause
+                else {
+                    document.body.style.background = "none"; // cache le splashscreen
+                    console.log("splash off");
+                }
             }
-      }
 
-        if (position[1] < -1.2) {
-            var index = ennemies.indexOf(ennemy);
-            //ennemies[index] = new Ennemy();
-            //document.score--;
-            //document.scoreElement.innerHTML = document.score;
-        }
-        gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
-        if (ennemy.getType() === 1) {
-            gl.bindTexture(gl.TEXTURE_2D, tennemy1); // on place maTexture dans l'unité active
-        }
-        if (ennemy.getType() === 2) {
-            gl.bindTexture(gl.TEXTURE_2D, tennemy2); // on place maTexture dans l'unité active
-        }
-        gl.enable(gl.BLEND, ennemy);
-        gl.depthMask(false);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.uniform1i(ennemy.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-        ennemy.draw();
-        gl.depthMask(true);
-        gl.disable(gl.BLEND);
-
-    });
-
-    missiles.forEach(function (missile) {
-        if (!missile.end) {
-            gl.useProgram(missile.shader());
-            missile.sendUniformVariables();
-            if (!document.pause) {
-                missile.move();
+            function drawScene() {
+                // initialisation du viewport
+                gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+                // efface les buffers de couleur et de profondeur
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                // active le FBO (a partie de la, on dessine dans la texture associée)
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.id());
+                // dessin du heightfield
+                gl.useProgram(heightfield.shader());
+                heightfield.sendUniformVariables();
+                heightfield.draw();
+                // desactivation du FBO (on dessine sur l'ecran maintenant)
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                // dessin du background (utilise la texture dessinée précédemment)
+                gl.useProgram(background.shader());
+                background.sendUniformVariables();
+                background.draw();
+                // dessin du vaisseau (shader par defaut ici)
+                gl.useProgram(spaceship.shader());
+                spaceship.sendUniformVariables();
+                spaceship.init();
+                // dessin des ennemis (shader par defaut ici)
+                ennemies.forEach(function (ennemy) {
+                    ennemy.init(missiles, ennemies, explosions, spaceship);
+                });
+                missiles.forEach(function (missile) {
+                    if (!missile.end) {
+                        missile.init();
+                    } else {
+                        var position = missile.getPosition();
+                        delete missiles[missiles.indexOf(missile)];
+                        explosions.push(new Explosion(position[0], position[1], new Date().getTime()));
+                    }
+                });
+                explosions.forEach(function (explosion) {
+                    if (!explosion.end) {
+                        explosion.init();
+                    } else {
+                        delete explosions[explosions.indexOf(explosion)];
+                    }
+                });
             }
-            var position = missile.getPosition();
-            if (position[1] < -1.2) {
-                var index = missiles.indexOf(missile);
-                missiles[index] = null;
-            }
-            gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
-            gl.bindTexture(gl.TEXTURE_2D, tmissile); // on place maTexture dans l'unité active
-            gl.enable(gl.BLEND);
-            gl.depthMask(false);
-            gl.blendEquation(gl.FUNC_ADD);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-            gl.uniform1i(missile.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-            missile.draw();
-            gl.depthMask(true);
-            gl.disable(gl.BLEND);
-        } else {
-            var position = missile.getPosition();
-            delete missiles[missiles.indexOf(missile)];
-            explosions.push(new Explosion(position[0], position[1], new Date().getTime()));
-        }
-    });
-
-
-    explosions.forEach(function (explosion) {
-        if (!explosion.end) {
-            //console.log(texplosion);
-            gl.useProgram(explosion.shader());
-            explosion.sendUniformVariables();
-            //gl.activeTexture(gl["TEXTURE"+explosion.state]); // on active l'unite de texture 0
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, window["texplosion" + explosion.state]);
-            gl.enable(gl.BLEND);
-            gl.depthMask(false);
-            gl.blendEquation(gl.FUNC_ADD);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-            gl.uniform1i(explosion.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
-            explosion.draw();
-            gl.depthMask(true);
-            gl.disable(gl.BLEND);
-        } else {
-            delete explosions[explosions.indexOf(explosion)];
-        }
-    });
-
-
-
-
-}
 
 
 // une bonne manière de gerer les evenements claviers
 // permet d'avoir plusieurs touches appuyées simultanémen
-var currentlyPressedKeys = {};
-
-function handleKeyDown(event) {
-    currentlyPressedKeys[event.keyCode] = true;
-    //alert(event.keyCode);
-}
-
-
-function handleKeyUp(event) {
-    currentlyPressedKeys[event.keyCode] = false;
-}
-var lastPause = new Date().getTime();
-function handleKeys() {
-    if (!document.pause && ((new Date().getTime() - lastPause) > 5000)) {
-        document.message.innerHTML = "";
-    }
-    if (currentlyPressedKeys[32]) {
-        fire();
-    }
-    if (currentlyPressedKeys[80]) {//pause = P
-        var elapsed = new Date().getTime() - lastPause;
-        lastPause = new Date().getTime();
-        if (elapsed > 100) {
-            document.pause = !document.pause;
-            if (document.pause) {
-                document.message.innerHTML = "Pause";
-            } else {
-                document.message.innerHTML = "";
+            var currentlyPressedKeys = {};
+            function handleKeyDown(event) {
+                currentlyPressedKeys[event.keyCode] = true;
+                //alert(event.keyCode);
             }
-        }
-    }
-    if (!document.pause) {
-        if (currentlyPressedKeys[81]) {//move left = Q
-            moveLeft();
-        }
-        if (currentlyPressedKeys[68]) {//move right = D
-            moveRight();
-        }
-        if (currentlyPressedKeys[90]) {//move forward = Z
-            moveForward();
-        }
-        if (currentlyPressedKeys[83]) {//move backward = S
-            moveBackward();
-        }
-    }
-}
-function moveLeft() {
-    var position = spaceship.getPosition();
-    if (position[0] > -0.8) {
-        spaceship.setPosition((position[0] - 0.01), position[1]);
-    }
-}
-function moveRight() {
-    var position = spaceship.getPosition();
-    if (position[0] < 0.8) {
-        spaceship.setPosition((position[0] + 0.01), position[1]);
-    }
-}
-function moveForward() {
-    var position = spaceship.getPosition();
-    if (position[1] < 0.8) {
-        spaceship.setPosition(position[0], (position[1] + 0.01));
-    }
-}
-function moveBackward() {
-    var position = spaceship.getPosition();
-    if (position[1] > -0.8) {
-        spaceship.setPosition(position[0], (position[1] - 0.01));
-    }
-}
-function fire() {
-    var timeNow = new Date().getTime();
-    var elapsed = timeNow - lastMissileFired;
-    if (elapsed > 1000) {
-
-        var position = spaceship.getPosition();
-        missiles.push(new Missile(position[0] - 0.1, position[1] - 0.05, timeNow));
-        missiles.push(new Missile(position[0] + 0.1, position[1] - 0.05, timeNow));
-        console.log("missiles fired");
-        //lastTime = timeNow;
-        lastMissileFired = timeNow;
-    }
-}
 
 
-// animation
-var lastTime = 0;
-var ennemy_type = 1;
-var speed = 1;
-function animate() {
-    var timeNow = new Date().getTime();
-    if (lastTime !== 0) {
-        // chaque objet est susceptible de s'animer
-        var elapsed = timeNow - lastTime;
-        if (!document.pause) {
-            //speed = speed * 1.001;
-            heightfield.setParameters(elapsed, speed);
-        } else {
-            heightfield.setParameters(0, 0);
-        }
-        spaceship.setParameters(elapsed);
-
-        background.setParameters(elapsed);
-        if (((elapsed % 3) === 0) && !document.pause) {
-            if (ennemy_type === 1) {
-                ennemies.push(new Ennemy(1));
-                ennemy_type = 2;
+            function handleKeyUp(event) {
+                currentlyPressedKeys[event.keyCode] = false;
             }
-            if (ennemy_type === 2) {
-                ennemies.push(new Ennemy(2));
-                ennemy_type = 1;
+            var lastPause = new Date().getTime();
+            function handleKeys() {
+                if (!document.pause && ((new Date().getTime() - lastPause) > 5000)) {
+                    document.message.innerHTML = "";
+                }
+                if (currentlyPressedKeys[32]) {
+                    fire();
+                }
+                if (currentlyPressedKeys[80]) {//pause = P
+                    var elapsed = new Date().getTime() - lastPause;
+                    lastPause = new Date().getTime();
+                    if (elapsed > 100) {
+                        document.pause = !document.pause;
+                        if (document.pause) {
+                            document.message.innerHTML = "Pause";
+                        } else {
+                            document.message.innerHTML = "";
+                        }
+                    }
+                }
+                if (!document.pause) {
+                    if (currentlyPressedKeys[81]) {//move left = Q
+                        moveLeft();
+                    }
+                    if (currentlyPressedKeys[68]) {//move right = D
+                        moveRight();
+                    }
+                    if (currentlyPressedKeys[90]) {//move forward = Z
+                        moveForward();
+                    }
+                    if (currentlyPressedKeys[83]) {//move backward = S
+                        moveBackward();
+                    }
+                }
             }
-        }
-        explosions.forEach(function (explosion) {
-            if (!document.pause) {
-                explosion.setParameters(timeNow)
+            function moveLeft() {
+                var position = spaceship.getPosition();
+                if (position[0] > -0.8) {
+                    spaceship.setPosition((position[0] - 0.01), position[1]);
+                }
             }
-            ;
-        });
-
-        /*ennemies.forEach(function (ennemy) {
-         ennemy.setParameters(elapsed);
-         });*/
-        missiles.forEach(function (missile) {
-            if (!document.pause) {
-                missile.setParameters(timeNow);
+            function moveRight() {
+                var position = spaceship.getPosition();
+                if (position[0] < 0.8) {
+                    spaceship.setPosition((position[0] + 0.01), position[1]);
+                }
             }
-        });
-    }
-    lastTime = timeNow;
-}
+            function moveForward() {
+                var position = spaceship.getPosition();
+                if (position[1] < 0.8) {
+                    spaceship.setPosition(position[0], (position[1] + 0.01));
+                }
+            }
+            function moveBackward() {
+                var position = spaceship.getPosition();
+                if (position[1] > -0.8) {
+                    spaceship.setPosition(position[0], (position[1] - 0.01));
+                }
+            }
+            function fire() {
+                var timeNow = new Date().getTime();
+                var elapsed = timeNow - lastMissileFired;
+                if (elapsed > 1000) {
 
-function tick() {
-    requestAnimFrame(tick);
-    handleKeys();
-    drawScene();
-    animate();
-}
+                    var position = spaceship.getPosition();
+                    missiles.push(new Missile(position[0] - 0.1, position[1] - 0.05, timeNow));
+                    missiles.push(new Missile(position[0] + 0.1, position[1] - 0.05, timeNow));
+                    console.log("missiles fired");
+                    //lastTime = timeNow;
+                    lastMissileFired = timeNow;
+                }
+            }
 
-var tspaceship;
-var tennemy1;
-var tennemy2;
-var tmissile;
-var texplosion0;
-var texplosion1;
-var texplosion2;
+            var lastTime = 0;
+            var ennemy_type = 1;
+            var speed = 1;
+            function animate() {
+                var timeNow = new Date().getTime();
+                if (lastTime !== 0) {
+                    // chaque objet est susceptible de s'animer
+                    var elapsed = timeNow - lastTime;
+                    if (!document.pause) {
+                        //speed = speed * 1.001;
+                        heightfield.setParameters(elapsed, speed);
+                    } else {
+                        heightfield.setParameters(0, 0);
+                    }
+                    spaceship.setParameters(elapsed);
+                    background.setParameters(elapsed);
+                    if (((elapsed % 10) === 0) && !document.pause) {
+                        if (ennemy_type === 1) {
+                            ennemies.push(new Ennemy(1));
+                            ennemy_type = 2;
+                        }
+                        if (ennemy_type === 2) {
+                            ennemies.push(new Ennemy(2));
+                            ennemy_type = 1;
+                        }
+                    }
+                    explosions.forEach(function (explosion) {
+                        if (!document.pause) {
+                            explosion.setParameters(timeNow)
+                        }
+                        ;
+                    });
+                    /*ennemies.forEach(function (ennemy) {
+                     ennemy.setParameters(elapsed);
+                     });*/
+                    missiles.forEach(function (missile) {
+                        if (!document.pause) {
+                            missile.setParameters(timeNow);
+                        }
+                    });
+                }
+                lastTime = timeNow;
+            }
+            function tick() {
+                requestAnimFrame(tick);
+                handleKeys();
+                drawScene();
+                animate();
+            }
 
-function initTexture() {
-    // creation de la texture
-    tspaceship = gl.createTexture();
-    tspaceship.image = new Image();
-    tspaceship.image.onload = function () {
-        handleLoadedTexture(tspaceship)
-    }
+            var tspaceship;
+            var tennemy1;
+            var tennemy2;
+            var tmissile;
+            var texplosion0;
+            var texplosion1;
+            var texplosion2;
+            function initTexture() {
+                // creation de la texture
+                tspaceship = gl.createTexture();
+                tspaceship.image = new Image();
+                tspaceship.image.onload = function () {
+                    handleLoadedTexture(tspaceship)
+                }
 
-    tspaceship.image.src = "spaceship.png";
+                tspaceship.image.src = "spaceship.png";
+                tennemy1 = gl.createTexture();
+                tennemy1.image = new Image();
+                tennemy1.image.onload = function () {
+                    handleLoadedTexture(tennemy1)
+                }
 
-    tennemy1 = gl.createTexture();
-    tennemy1.image = new Image();
-    tennemy1.image.onload = function () {
-        handleLoadedTexture(tennemy1)
-    }
+                tennemy1.image.src = "ennemy1.png";
+                tennemy2 = gl.createTexture();
+                tennemy2.image = new Image();
+                tennemy2.image.onload = function () {
+                    handleLoadedTexture(tennemy2)
+                }
 
-    tennemy1.image.src = "ennemy1.png";
+                tennemy2.image.src = "ennemy2.png";
+                tmissile = gl.createTexture();
+                tmissile.image = new Image();
+                tmissile.image.onload = function () {
+                    handleLoadedTexture(tmissile)
+                }
 
-    tennemy2 = gl.createTexture();
-    tennemy2.image = new Image();
-    tennemy2.image.onload = function () {
-        handleLoadedTexture(tennemy2)
-    }
+                tmissile.image.src = "missile.png";
+                texplosion0 = gl.createTexture();
+                texplosion0.image = new Image();
+                texplosion0.image.onload = function () {
+                    handleLoadedTexture(texplosion0);
+                }
+                texplosion0.image.src = "explosion0.png";
+                texplosion1 = gl.createTexture();
+                texplosion1.image = new Image();
+                texplosion1.image.onload = function () {
+                    handleLoadedTexture(texplosion1);
+                }
+                texplosion1.image.src = "explosion1.png";
+                texplosion2 = gl.createTexture();
+                texplosion2.image = new Image();
+                texplosion2.image.onload = function () {
+                    handleLoadedTexture(texplosion2);
+                }
+                texplosion2.image.src = "explosion2.png";
 
-    tennemy2.image.src = "ennemy2.png";
+                tnuclear = gl.createTexture();
+                tnuclear.image = new Image();
+                tnuclear.image.onload = function () {
+                    handleLoadedTexture(tnuclear);
+                }
+                tnuclear.image.src = "nuclear.png";
+            }
+            var scores = localStorage.getItem('scores');
+            
+            function webGLStart() {
+                splashScreen('1');
+                // initialisation du canvas et des objets OpenGL
+                document.nomJoueur = prompt("Nom"); // recuperation nom du joueur
+                document.getElementById("nomJoueur").innerHTML = document.nomJoueur;
+                while (typeof document.nomJoueur === 'undefined') { // tant que le nom nest pas fournit
+                    document.pause = true; // le jeu est en pause
+                } // si le nom est founit
+                splashScreen('0');
+                document.pause = false; // enleve la pause
 
-    tmissile = gl.createTexture();
-    tmissile.image = new Image();
-    tmissile.image.onload = function () {
-        handleLoadedTexture(tmissile)
-    }
+                var canvas = document.getElementById("SpaceShip");
+                document.scoreElement = document.getElementById("score");
+                document.scoreMaxElement = document.getElementById("scoremax");
+                document.message = document.getElementById("message");
+                document.score = 0;
+                if (typeof scores !== 'undefined') {
+                    if (scores[document.nomJoueur] !== null) {
+                        document.scoreMax = scores[document.nomJoueur];
+                    } else {
+                        document.scoreMax = 0;
+                    }
+                } else {
+                    var scores = [];
+                    scores[document.nomJoueur] = 0;
+                    localStorage.setItem('scores', scores);
+                    document.scoreMax = 0;
+                }
+                document.pause = false;
+                initGL(canvas);
+                // init FBO
+                fbo = new FBO(canvas.width, canvas.height, 1, false);
+                // init de tous les shaders
+                initHeightfieldShader();
+                initBackgroundShader();
+                initSpaceshipShader();
+                initEnnemyShader();
+                initMissileShader();
+                initExplosionShader();
+                initTexture();
+                // init de tous les objets
+                heightfield = new Heightfield();
+                background = new Background(fbo.texture(0));
+                spaceship = new Spaceship();
+                ennemies[0] = new Ennemy(1);
+                // la couleur de fond sera noire
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                // active le teste de profondeur
+                gl.enable(gl.DEPTH_TEST);
+                /* Mouse and keyboard interaction functions */
+                //canvas.addEventListener('mousedown', tbMouseDown, true);
+                //canvas.addEventListener('mousemove', mouseMove, true);
+                //canvas.addEventListener('mouseup', tbMouseUp, true);
 
-    tmissile.image.src = "missile.png";
-
-
-    texplosion0 = gl.createTexture();
-    texplosion0.image = new Image();
-    texplosion0.image.onload = function () {
-        handleLoadedTexture(texplosion0);
-    }
-    texplosion0.image.src = "explosion0.png";
-
-    texplosion1 = gl.createTexture();
-    texplosion1.image = new Image();
-    texplosion1.image.onload = function () {
-        handleLoadedTexture(texplosion1);
-    }
-    texplosion1.image.src = "explosion1.png";
-
-
-    texplosion2 = gl.createTexture();
-    texplosion2.image = new Image();
-    texplosion2.image.onload = function () {
-        handleLoadedTexture(texplosion2);
-    }
-    texplosion2.image.src = "explosion2.png";
-
-
-}
-
-
-function webGLStart() {
-    // initialisation du canvas et des objets OpenGL
-        splashScreen("1");
-    var nomJoueur= prompt("Nom"); // recuperation nom du joueur
-
-    document.getElementById("nomJoueur").innerHTML = nomJoueur;
-    while (typeof nomJoueur == 'undefined' ) { // tant que le nom nest pas fournit
-      document.pause = true; // le jeu est en pause
-    } // si le nom est founit
-    splashScreen("0");
-    document.pause = false; // enleve la pause
-
-    var canvas = document.getElementById("SpaceShip");
-    document.scoreElement = document.getElementById("score");
-    document.scoreMaxElement = document.getElementById("scoremax");
-    document.message = document.getElementById("message");
-    document.score = 0;
-    document.scoreMax = 0;
-    document.pause = false;
-    initGL(canvas);
-    // init FBO
-    fbo = new FBO(canvas.width, canvas.height, 1, false);
-
-    // init de tous les shaders
-    initHeightfieldShader();
-    initBackgroundShader();
-    initSpaceshipShader();
-    initEnnemyShader();
-    initMissileShader();
-    initExplosionShader();
-    initTexture();
-
-    // init de tous les objets
-    heightfield = new Heightfield();
-    background = new Background(fbo.texture(0));
-    spaceship = new Spaceship();
-    ennemies[0] = new Ennemy(1);
-
-
-    // la couleur de fond sera noire
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-
-    // active le teste de profondeur
-    gl.enable(gl.DEPTH_TEST);
-
-    /* Mouse and keyboard interaction functions */
-    //canvas.addEventListener('mousedown', tbMouseDown, true);
-    //canvas.addEventListener('mousemove', mouseMove, true);
-    //canvas.addEventListener('mouseup', tbMouseUp, true);
-
-    document.onkeydown = handleKeyDown;
-    document.onkeyup = handleKeyUp;
-
-    // dessine la scene
-    tick();
-}
-
-
+                document.onkeydown = handleKeyDown;
+                document.onkeyup = handleKeyUp;
+                // dessine la scene
+                tick();
+            }
         </script>
+        <style>
+            #infos{
+                display: flex;
+                flex-flow: row;
+                justify-content: space-around;
+            }
 
+            #infos p{
+                font-weight: bold;
+                padding:10px;
+            }
 
+            *{
+                text-transform: uppercase;
+                font-family: sans-serif;
+                text-shadow: 0px 0px 3px #000;
+            }
+        </style>
     </head>
-
-    <style>
-      #infos{
-        display: flex;
-        flex-flow: row;
-        justify-content: space-around;
-      }
-
-      #infos p{
-        font-weight: bold;
-        padding:10px;
-      }
-
-      *{
-        text-transform: uppercase;
-        font-family: sans-serif;
-        text-shadow: 0px 0px 3px #000;
-      }
-    </style>
-
     <body onload="webGLStart();">
         <canvas id="SpaceShip" style="border: none;" width="800" height="800"></canvas>
         <div style="position: absolute;
@@ -851,13 +697,12 @@ function webGLStart() {
              padding-left:5px;
              font-weight:bold;">
             <div id="infos">
-              <p>Joueur : <span id="nomJoueur"></span></p>
-              <p>score : <span id="score">0</span></p>
-              <p>score max : <span id="scoremax">0</span></p>
-              <p>meilleur joueur:<span id="meilleurJoueur">XYZ / 100</span></p>
-              <p>vie:<span id="vie"></span></p>
-          </div>
-
+                <p>Joueur : <span id="nomJoueur"></span></p>
+                <p>score : <span id="score">0</span></p>
+                <p>score max : <span id="scoremax">0</span></p>
+                <p>meilleur joueur:<span id="meilleurJoueur">XYZ / 100</span></p>
+                <p>vie:<span id="vie"></span></p>
+            </div>
         </div>
         <div style="position: absolute;
              top:400px;

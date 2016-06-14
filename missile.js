@@ -20,8 +20,8 @@ function initMissileShader() {
     console.log("missile shader initialized");
 }
 
-function Missile(x,y,time) {
-    this.initParameters(x,y,time);
+function Missile(x, y, time) {
+    this.initParameters(x, y, time);
 
     // cree un nouveau buffer sur le GPU et l'active
     this.vertexBuffer = gl.createBuffer();
@@ -66,16 +66,16 @@ function Missile(x,y,time) {
     console.log("missile initialized");
 }
 
-Missile.prototype.initParameters = function (x,y,time) {
+Missile.prototype.initParameters = function (x, y, time) {
     this.width = 0.2;
     this.height = 0.2;
-    this.position = [x,y];
+    this.position = [x, y];
     this.time = time;
     this.end = false;
 }
 
 Missile.prototype.setParameters = function (time) {
-    if(time > (this.time + 2500)){
+    if (time > (this.time + 2500)) {
         this.end = true;
     }
 }
@@ -101,7 +101,28 @@ Missile.prototype.shader = function () {
 Missile.prototype.sendUniformVariables = function () {
     gl.uniform2fv(missileShader.positionUniform, this.position);
 }
-
+Missile.prototype.init = function () {
+    gl.useProgram(this.shader());
+    this.sendUniformVariables();
+    if (!document.pause) {
+        this.move();
+    }
+    var position = this.getPosition();
+    if (position[1] < -1.2) {
+        var index = this.indexOf(this);
+        this[index] = null;
+    }
+    gl.activeTexture(gl.TEXTURE0); // on active l'unite de texture 0
+    gl.bindTexture(gl.TEXTURE_2D, window["tmissile"]); // on place maTexture dans l'unitÃ© active
+    gl.enable(gl.BLEND);
+    gl.depthMask(false);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform1i(this.maTextureUniform, 0); // on dit au shader que maTextureUniform se trouve sur l'unite de texture 0
+    this.draw();
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+}
 Missile.prototype.draw = function () {
     // active le buffer de position et fait le lien avec l'attribut aVertexPosition dans le shader
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);

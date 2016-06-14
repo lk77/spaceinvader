@@ -103,10 +103,10 @@ Ennemy.prototype.move = function () {
     var x = this.position[0];
     var y = this.position[1];
     if (this.type === 1) {
-        this.position = [x + Math.sin(y) * 0.005, y -  0.01];
+        this.position = [x - Math.sin(y) *0.0015, y -  0.01];
     }
     if (this.type === 2) {
-        this.position = [x + Math.sin(y) * 0.005, y -  0.025];
+        this.position = [x + Math.sin(y) *0.0035, y -  0.025];
     }
 }
 

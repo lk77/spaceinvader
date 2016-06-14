@@ -624,7 +624,7 @@ function animate() {
         spaceship.setParameters(elapsed);
 
         background.setParameters(elapsed);
-        if (((elapsed % 5) === 0) && !document.pause) {
+        if (((elapsed % 20) === 0) && !document.pause) {
             if (ennemy_type === 1) {
                 ennemies.push(new Ennemy(1));
                 ennemy_type = 2;

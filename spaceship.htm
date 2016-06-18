@@ -608,8 +608,8 @@
                 }
                 tnuclear.image.src = "nuclear.png";
             }
-            var scores = localStorage.getItem('scores');
-            
+            document.scores = [];
+
             function webGLStart() {
                 splashScreen('1');
                 // initialisation du canvas et des objets OpenGL
@@ -626,18 +626,35 @@
                 document.scoreMaxElement = document.getElementById("scoremax");
                 document.message = document.getElementById("message");
                 document.score = 0;
-                if (typeof scores !== 'undefined') {
-                    if (scores[document.nomJoueur] !== null) {
-                        document.scoreMax = scores[document.nomJoueur];
+                console.log(document.scores);
+                if (typeof localStorage !== 'undefined') {
+                    if (typeof localStorage.getItem('scores') !== 'undefined') {
+                        if (localStorage.getItem('scores') !== null) {
+                            document.scores = localStorage.getItem('scores');
+                            if (typeof document.scores[document.nomJoueur] !== 'undefined') {
+                                document.scoreMax = document.scores[document.nomJoueur];
+                                document.scoreMaxElement.innerHTML = document.scoreMax;
+                            } else {
+                                document.scores = [];
+                                document.scores.push([document.nomJoueur, 0]);
+                                localStorage.setItem('scores', document.scores);
+                                document.scoreMax = 0;
+                            }
+                        } else {
+                            console.log('else');
+                            document.scores.push([document.nomJoueur, 0]);
+                            localStorage.setItem('scores', document.scores);
+                            document.scoreMax = 0;
+                        }
                     } else {
+                        document.scores.push([document.nomJoueur, 0]);
+                        localStorage.setItem('scores', document.scores);
                         document.scoreMax = 0;
                     }
                 } else {
-                    var scores = [];
-                    scores[document.nomJoueur] = 0;
-                    localStorage.setItem('scores', scores);
-                    document.scoreMax = 0;
+                    console.log('test');
                 }
+                console.log(localStorage.getItem('scores'));
                 document.pause = false;
                 initGL(canvas);
                 // init FBO
